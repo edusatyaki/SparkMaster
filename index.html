@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChillPanda | PySpark 150 Mastery</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0d1117; --card-bg: #161b22; --text-primary: #c9d1d9; --text-secondary: #8b949e;
+            --accent-spark-orange: #E25A1C; --accent-spark-blue: #139BAE; --border-color: #30363d;
+            --code-font: 'Fira Code', monospace;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Outfit', sans-serif; background-color: var(--bg-color); color: var(--text-primary); padding-top: 80px; padding-bottom: 100px; }
+        .ambient-light { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: -1; background: radial-gradient(circle at 50% 0%, rgba(226, 90, 28, 0.08) 0%, transparent 50%); }
+        .progress-container { position: fixed; top: 0; left: 0; width: 100%; z-index: 1000; background: rgba(13, 17, 23, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border-color); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .progress-info { font-size: 0.9rem; color: var(--text-secondary); font-weight: 600; white-space: nowrap; }
+        .progress-bar-wrapper { flex: 1; min-width: 150px; margin: 0 10px; background: #21262d; height: 6px; border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: var(--accent-spark-orange); width: 0%; transition: width 0.4s ease; border-radius: 2px; }
+        .reset-btn { background: transparent; border: 1px solid #da3633; color: #da3633; padding: 4px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; transition: 0.2s; }
+        .reset-btn:hover { background: #da3633; color: #fff; }
+        header { padding: 3rem 2rem; text-align: center; }
+        h1 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 700; color: #f0f6fc; margin-bottom: 0.5rem; }
+        .controls-wrapper { max-width: 1200px; margin: 1rem auto; display: flex; gap: 1rem; padding: 0 2rem; flex-wrap: wrap; }
+        .search-input, .filter-select { flex: 1; padding: 0.8rem 1rem; border-radius: 6px; border: 1px solid var(--border-color); background: #0d1117; color: #fff; font-family: var(--code-font); font-size: 0.9rem; min-width: 200px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 2rem; }
+        .table-wrapper { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        table { width: 100%; border-collapse: collapse; min-width: 700px; }
+        th { text-align: left; padding: 1rem; color: var(--text-secondary); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--border-color); background: #161b22; position: sticky; top: 0; z-index: 10; }
+        td { padding: 1rem; border-bottom: 1px solid var(--border-color); vertical-align: middle; font-size: 0.95rem; }
+        tr:hover { background: #21262d; }
+        .func-name { font-family: var(--code-font); color: var(--accent-spark-blue); font-weight: 500; font-size: 1rem; }
+        .desc-text { font-size: 0.9rem; color: #8b949e; line-height: 1.5; }
+        
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: 0.2s; z-index: 2000; padding: 20px; }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .notebook-window { width: 100%; max-width: 900px; background: #fff; border-radius: 8px; display: flex; flex-direction: column; height: 85vh; color: #000; overflow: hidden; box-shadow: 0 50px 100px rgba(0,0,0,0.5); }
+        .notebook-header { background: #1e1e1e; padding: 8px 20px; border-bottom: 1px solid #333; font-size: 0.85rem; color: #d4d4d4; display: flex; justify-content: space-between; align-items: center; border-top: 3px solid var(--accent-spark-orange);}
+        .notebook-body { flex: 1; overflow-y: auto; padding: 30px; font-family: var(--code-font); font-size: 14px; background: #f5f5f5; }
+
+        .info-box { padding: 12px 15px; border-radius: 6px; margin-bottom: 20px; font-family: sans-serif; font-size: 13.5px; line-height: 1.5; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .question-box { background: #e0f2fe; border-left: 4px solid var(--accent-spark-blue); color: #0c4a6e; }
+        .question-title { font-weight: bold; margin-bottom: 4px; color: var(--accent-spark-blue); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;}
+        .explanation-box { background: #fff3ed; border-left: 4px solid var(--accent-spark-orange); color: #5e280c; margin-top: 20px; margin-bottom: 0;}
+        .explanation-title { font-weight: bold; margin-bottom: 4px; color: #c4470e; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;}
+
+        .schema-container { margin-bottom: 25px; padding: 15px; background: #e8eaed; border-radius: 6px; border: 1px solid #ccc; font-family: sans-serif; }
+        .schema-title { font-size: 11px; font-weight: 700; color: #555; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 0.5px; }
+        .context-table { width: 100%; border-collapse: collapse; font-size: 13px; font-family: var(--code-font); min-width: unset; background: #fff; border-radius: 4px; overflow: hidden; border: 1px solid #ddd; }
+        .context-table th { background: #f6f8fa; color: #57606a; font-weight: 600; text-align: left; padding: 8px 12px; border-bottom: 1px solid #d0d7de; font-size: 12px; font-family: sans-serif;}
+        .context-table td { padding: 8px 12px; border-bottom: 1px solid #e1e4e8; color: #24292f; }
+
+        .cell-input { display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; }
+        .prompt { color: #888; user-select: none; font-size: 11px; font-family: sans-serif; font-weight: bold; text-transform: uppercase; }
+        .input-area { flex: 1; background: #1e1e1e; color: #d4d4d4; border-radius: 4px; padding: 15px; white-space: pre-wrap; line-height: 1.5; font-size: 14px; overflow-x: auto; border-left: 4px solid var(--accent-spark-orange); }
+        .output-area { margin-top: 10px; font-family: var(--code-font); font-size: 13px; color: #333; overflow-x: auto; background: #fff; padding: 15px; border: 1px solid #ddd; border-radius: 4px; white-space: pre-wrap; }
+        
+        .spark-show { font-size: 12px; white-space: pre; line-height: 1.2; color: #000; }
+        .spark-schema { color: #2a7b9b; }
+        .py-kw { color: #569cd6; font-weight: bold; }
+        .py-str { color: #ce9178; }
+        .py-num { color: #b5cea8; }
+        .py-spark { color: #4ec9b0; font-weight: bold; }
+        .py-func { color: #dcdcaa; }
+
+        .play-btn { background: transparent; border: 1px solid var(--accent-spark-orange); color: var(--accent-spark-orange); width: 32px; height: 32px; border-radius: 4px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
+        .play-btn:hover { background: var(--accent-spark-orange); color: #000; }
+        .checkbox-custom { width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent-spark-blue); }
+        .fixed-footer { position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(13, 17, 23, 0.95); backdrop-filter: blur(5px); border-top: 1px solid var(--border-color); padding: 1rem; text-align: center; font-size: 0.9rem; z-index: 1000; }
+        .fixed-footer a { color: var(--accent-spark-orange); text-decoration: none; font-weight: 600; }
+
+        @media (max-width: 768px) {
+            body { padding-top: 120px; } header { padding: 1.5rem 1rem; } .controls-wrapper { padding: 0 1rem; flex-direction: column; } .search-input, .filter-select { width: 100%; min-width: unset; } .container { padding: 0 1rem; } .notebook-window { height: 95vh; }
+        }
+    </style>
+</head>
+<body>
+    <div class="ambient-light"></div>
+
+    <div class="progress-container">
+        <span class="progress-info">PySpark Mastery</span>
+        <div class="progress-bar-wrapper"><div id="progress-bar-fill" class="progress-bar-fill"></div></div>
+        <span id="progress-text" class="progress-info">0/150</span>
+        <button class="reset-btn" onclick="resetProgress()">Reset</button>
+    </div>
+
+    <header>
+        <h1>Chill Panda 🐼</h1>
+        <p style="color: var(--text-secondary)">Exact syntax. Distributed logic. All 150 PySpark Methods.</p>
+    </header>
+
+    <div class="controls-wrapper">
+        <input type="text" id="searchInput" class="search-input" placeholder="Search method...">
+        <select id="catFilter" class="filter-select">
+            <option value="all">All Categories</option>
+            <option value="Session_IO">1. Session & IO</option>
+            <option value="Basics_Cleaning">2. Basics & Cleaning</option>
+            <option value="Columns_Select">3. Columns & Selection</option>
+            <option value="Aggs_Joins">4. Aggregations & Joins</option>
+            <option value="Window">5. Window & Partitions</option>
+            <option value="Functions">6. Built-in Functions</option>
+            <option value="RDD_Adv">7. RDD & Advanced</option>
+        </select>
+    </div>
+
+    <div class="container">
+        <div class="table-wrapper">
+            <table>
+                <thead><tr><th width="50">✓</th><th width="140">Category</th><th width="180">Method</th><th>Explanation</th><th width="80">Demo</th></tr></thead>
+                <tbody id="master-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal">
+        <div class="notebook-window">
+            <div class="notebook-header"><span><span style="color:var(--accent-spark-orange)">▶</span> PySpark Cluster Context</span><button onclick="closeModal()" style="background:none; border:none; cursor:pointer; font-size:1.2rem; color:#fff;">×</button></div>
+            <div class="notebook-body">
+                <div class="schema-container" id="schema-view">
+                    <div class="schema-title">Current Spark Context / DataFrames:</div>
+                    <table class="context-table">
+                        <thead><tr><th>Variable</th><th>State / Schema</th></tr></thead>
+                        <tbody id="context-body"></tbody>
+                    </table>
+                </div>
+                <div class="info-box question-box" id="demo-question-box"><div class="question-title">🎯 Scenario</div><div id="demo-question"></div></div>
+                <div class="cell">
+                    <div class="cell-input"><div class="prompt" id="prompt-label">pyspark_job.py</div><div class="input-area active" id="code-box"></div></div>
+                    <div class="prompt" style="margin-top: 15px;">Cluster Output:</div><div class="output-area" id="output-box"></div>
+                </div>
+                <div class="info-box explanation-box" id="demo-explanation-box"><div class="explanation-title">💡 Why this works</div><div id="demo-explanation"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="fixed-footer">Ideation & development <a href="https://github.com/edusatyaki" target="_blank">Satyaki Das</a> | PySpark 150 v_04.0.0</footer>
+
+    <script>
+        function highlightPySpark(str) {
+            const keywords = ['True', 'False', 'None', 'and', 'or', 'not', 'if', 'else', 'for', 'in', 'def', 'import', 'from', 'as', 'with'];
+            const sparkWords = ['spark', 'df', 'df1', 'df2', 'F', 'Window', 'col', 'lit', 'expr', 'sc'];
+            let highlighted = str;
+            highlighted = highlighted.replace(/(#.*)/g, `<span class="py-comment">$1</span>`);
+            highlighted = highlighted.replace(/(['"])(.*?)\1/g, `<span class="py-str">$&</span>`);
+            keywords.forEach(kw => { highlighted = highlighted.replace(new RegExp(`\\b${kw}\\b(?![^<]*>)`, 'g'), `<span class="py-kw">${kw}</span>`); });
+            sparkWords.forEach(kw => { highlighted = highlighted.replace(new RegExp(`\\b${kw}\\b(?![^<]*>)`, 'g'), `<span class="py-spark">${kw}</span>`); });
+            highlighted = highlighted.replace(/\b(\d+(\.\d+)?)\b(?![^<]*>)/g, `<span class="py-num">$1</span>`);
+            return highlighted;
+        }
+
+        function sparkShow(headers, rows) {
+            let hLine = '+' + headers.map(h => '-'.repeat(h.length + 2)).join('+') + '+';
+            let head = '| ' + headers.join(' | ') + ' |';
+            let body = rows.map(r => '| ' + r.map((c, i) => String(c).padEnd(headers[i].length)).join(' | ') + ' |').join('\n');
+            return `<div class="spark-show">${hLine}\n${head}\n${hLine}\n${body}\n${hLine}</div>`;
+        }
+
+        // --- FULL 150 METHODS DATASET ---
+        const methods = [
+            // 1. Session & IO (27 methods)
+            { cat: 'Session_IO', name: 'builder.appName()', desc: 'Set app name.', q: 'Name job?', exp: 'Sets UI name.', ctx: [], code: 'spark = SparkSession.builder.appName("App").getOrCreate()', out: 'SparkSession object' },
+            { cat: 'Session_IO', name: 'builder.master()', desc: 'Set cluster master URL.', q: 'Run locally?', exp: 'local[*] uses all logical cores.', ctx: [], code: 'spark = SparkSession.builder.master("local[*]").getOrCreate()', out: 'Context: master = local[*]' },
+            { cat: 'Session_IO', name: 'builder.config()', desc: 'Set Spark configs.', q: 'Tune memory?', exp: 'Passes key/value settings.', ctx: [], code: 'spark = SparkSession.builder.config("spark.executor.memory", "4g").getOrCreate()', out: 'Config Applied' },
+            { cat: 'Session_IO', name: 'builder.getOrCreate()', desc: 'Initialize session.', q: 'Start Spark?', exp: 'Gets existing or makes new.', ctx: [], code: 'spark = SparkSession.builder.getOrCreate()', out: 'Session Started' },
+            { cat: 'Session_IO', name: 'createDataFrame()', desc: 'Create DF from RDD/Lists.', q: 'Hardcode a DF?', exp: 'Distributes Python list into a DF.', ctx: [], code: 'df = spark.createDataFrame([("A", 1)], ["name", "id"])', out: sparkShow(['name','id'],[['A','1']]) },
+            { cat: 'Session_IO', name: 'sql()', desc: 'Run SQL.', q: 'Query via SQL?', exp: 'Executes standard SQL on Temp Views.', ctx: [{v:'spark',type:'Session',val:'View `t` exists'}], code: 'df = spark.sql("SELECT * FROM t")', out: 'DataFrame [id: int]' },
+            { cat: 'Session_IO', name: 'read()', desc: 'DataFrameReader interface.', q: 'Access reader?', exp: 'Gateway to load methods.', ctx: [], code: 'reader = spark.read', out: '<pyspark.sql.readwriter.DataFrameReader>' },
+            { cat: 'Session_IO', name: 'stop()', desc: 'Stop context.', q: 'End session?', exp: 'Releases resources.', ctx: [], code: 'spark.stop()', out: 'SparkSession stopped.' },
+            { cat: 'Session_IO', name: 'catalog()', desc: 'Interface to catalog.', q: 'List tables?', exp: 'Access metadata.', ctx: [], code: 'print(spark.catalog.listTables())', out: '[Table(name="t", database=None...)]' },
+            { cat: 'Session_IO', name: 'range()', desc: 'Create DF with numbers.', q: 'Generate sequence?', exp: 'Creates a single-column DF of longs.', ctx: [], code: 'df = spark.range(0, 3)\ndf.show()', out: sparkShow(['id'],[['0 '],['1 '],['2 ']]) },
+            { cat: 'Session_IO', name: 'write.csv()', desc: 'Write to CSV.', q: 'Export to CSV?', exp: 'Saves distributed partitions.', ctx: [{v:'df',type:'DF',val:'Data'}], code: 'df.write.csv("/path/out")', out: 'Files successfully written.' },
+            { cat: 'Session_IO', name: 'write.json()', desc: 'Write to JSON.', q: 'Export to JSON?', exp: 'Outputs JSON-lines.', ctx: [{v:'df',type:'DF',val:'Data'}], code: 'df.write.json("/path/out")', out: 'Files successfully written.' },
+            { cat: 'Session_IO', name: 'write.parquet()', desc: 'Write to Parquet.', q: 'Export compressed?', exp: 'Native Spark columnar format.', ctx: [{v:'df',type:'DF',val:'Data'}], code: 'df.write.parquet("/path/out")', out: 'Files successfully written.' },
+            { cat: 'Session_IO', name: 'write.save()', desc: 'Save using default format.', q: 'Save data?', exp: 'Uses default (usually parquet).', ctx: [{v:'df',type:'DF',val:'Data'}], code: 'df.write.save("/path/out")', out: 'Files successfully written.' },
+            { cat: 'Session_IO', name: 'write.mode()', desc: 'Set save mode.', q: 'Overwrite old data?', exp: 'Mode specifies behavior if file exists.', ctx: [{v:'df',type:'DF',val:'Data'}], code: 'df.write.mode("overwrite").parquet("/path")', out: 'Overwritten successfully.' },
+            { cat: 'Session_IO', name: 'overwrite (mode)', desc: 'Overwrite data.', q: 'Replace files?', exp: 'Deletes existing path.', ctx: [], code: '# Used as: mode("overwrite")', out: 'See write.mode()' },
+            { cat: 'Session_IO', name: 'append (mode)', desc: 'Append data.', q: 'Add to existing?', exp: 'Adds files to directory.', ctx: [], code: '# Used as: mode("append")', out: 'See write.mode()' },
+            { cat: 'Session_IO', name: 'ignore (mode)', desc: 'Ignore if exists.', q: 'Skip if exists?', exp: 'Does nothing if path exists.', ctx: [], code: '# Used as: mode("ignore")', out: 'See write.mode()' },
+            { cat: 'Session_IO', name: 'error (mode)', desc: 'Throw error if exists.', q: 'Fail if exists?', exp: 'Default behavior.', ctx: [], code: '# Used as: mode("error")', out: 'See write.mode()' },
+            { cat: 'Session_IO', name: 'read.csv()', desc: 'Read CSV.', q: 'Load CSV?', exp: 'Reads CSV into DF.', ctx: [], code: 'df = spark.read.csv("file.csv", header=True)', out: 'DataFrame Loaded.' },
+            { cat: 'Session_IO', name: 'read.json()', desc: 'Read JSON.', q: 'Load JSON?', exp: 'Reads JSON into DF.', ctx: [], code: 'df = spark.read.json("file.json")', out: 'DataFrame Loaded.' },
+            { cat: 'Session_IO', name: 'read.parquet()', desc: 'Read Parquet.', q: 'Load Parquet?', exp: 'Reads Parquet into DF.', ctx: [], code: 'df = spark.read.parquet("file.parquet")', out: 'DataFrame Loaded.' },
+            { cat: 'Session_IO', name: 'read.text()', desc: 'Read Text.', q: 'Load text lines?', exp: 'One column per line.', ctx: [], code: 'df = spark.read.text("file.txt")', out: 'DataFrame Loaded.' },
+            { cat: 'Session_IO', name: 'read.format()', desc: 'Specify source format.', q: 'Load generic format?', exp: 'Chain with .load()', ctx: [], code: 'df = spark.read.format("csv").load("file.csv")', out: 'DataFrame Loaded.' },
+            { cat: 'Session_IO', name: 'option()', desc: 'Add one read/write option.', q: 'Add header config?', exp: 'Sets single property.', ctx: [], code: 'df = spark.read.option("header", "true").csv("f.csv")', out: 'DataFrame Loaded.' },
+            { cat: 'Session_IO', name: 'options()', desc: 'Add multiple options.', q: 'Add many configs?', exp: 'Accepts a dictionary.', ctx: [], code: 'df = spark.read.options(header="true", inferSchema="true").csv("f.csv")', out: 'DataFrame Loaded.' },
+            { cat: 'Session_IO', name: 'load()', desc: 'Load data from path.', q: 'Execute load?', exp: 'Finalizes the reader.', ctx: [], code: 'df = spark.read.format("parquet").load("path")', out: 'DataFrame Loaded.' },
+
+            // 2. Basics & Cleaning (26 methods)
+            { cat: 'Basics_Cleaning', name: 'show()', desc: 'Print rows.', q: 'View data?', exp: 'Triggers action, prints to console.', ctx: [{v:'df',type:'DF',val:'[id, val]'}], code: 'df.show(2)', out: sparkShow(['id','val'],[['1 ','A  '],['2 ','B  ']]) },
+            { cat: 'Basics_Cleaning', name: 'head()', desc: 'Get first N rows.', q: 'Fetch top rows?', exp: 'Returns array of Row objects.', ctx: [{v:'df',type:'DF',val:'[id]'}], code: 'print(df.head(2))', out: '[Row(id=1), Row(id=2)]' },
+            { cat: 'Basics_Cleaning', name: 'first()', desc: 'Get first row.', q: 'Fetch very first?', exp: 'Returns a single Row.', ctx: [{v:'df',type:'DF',val:'[id]'}], code: 'print(df.first())', out: 'Row(id=1)' },
+            { cat: 'Basics_Cleaning', name: 'take()', desc: 'Get first N rows.', q: 'Fetch top N?', exp: 'Alias for head(n).', ctx: [{v:'df',type:'DF',val:'[id]'}], code: 'print(df.take(2))', out: '[Row(id=1), Row(id=2)]' },
+            { cat: 'Basics_Cleaning', name: 'collect()', desc: 'Get all rows.', q: 'Fetch all to driver?', exp: 'WARNING: Can cause OOM.', ctx: [{v:'df',type:'DF',val:'[id]'}], code: 'print(df.collect())', out: '[Row(id=1), Row(id=2)]' },
+            { cat: 'Basics_Cleaning', name: 'toPandas()', desc: 'Convert to Pandas.', q: 'Use Pandas logic?', exp: 'Pulls to driver as Pandas DF.', ctx: [{v:'df',type:'DF',val:'[id]'}], code: 'pdf = df.toPandas()\nprint(type(pdf))', out: "<class 'pandas.core.frame.DataFrame'>" },
+            { cat: 'Basics_Cleaning', name: 'printSchema()', desc: 'Print schema tree.', q: 'View datatypes?', exp: 'Prints hierarchy to console.', ctx: [{v:'df',type:'DF',val:'[age: int]'}], code: 'df.printSchema()', out: 'root\n |-- age: integer (nullable = true)' },
+            { cat: 'Basics_Cleaning', name: 'schema', desc: 'Get StructType schema.', q: 'Extract schema obj?', exp: 'Returns the programmatic schema.', ctx: [{v:'df',type:'DF',val:'[age]'}], code: 'print(df.schema)', out: 'StructType([StructField("age", IntegerType(), True)])' },
+            { cat: 'Basics_Cleaning', name: 'dtypes', desc: 'Get column types.', q: 'List datatypes?', exp: 'Returns list of tuples.', ctx: [{v:'df',type:'DF',val:'[age]'}], code: 'print(df.dtypes)', out: "[('age', 'int')]" },
+            { cat: 'Basics_Cleaning', name: 'columns', desc: 'Get column names.', q: 'List headers?', exp: 'Returns list of strings.', ctx: [{v:'df',type:'DF',val:'[age, name]'}], code: 'print(df.columns)', out: "['age', 'name']" },
+            { cat: 'Basics_Cleaning', name: 'describe()', desc: 'Basic stats.', q: 'Get summary stats?', exp: 'Count, mean, stddev, min, max.', ctx: [{v:'df',type:'DF',val:'[age: int]'}], code: 'df.describe().show()', out: sparkShow(['summary','age'],[['count','2'],['mean','25']]) },
+            { cat: 'Basics_Cleaning', name: 'summary()', desc: 'Detailed stats.', q: 'Get percentiles?', exp: 'Includes 25%, 50%, 75%.', ctx: [{v:'df',type:'DF',val:'[age: int]'}], code: 'df.summary().show()', out: sparkShow(['summary','age'],[['count','2'],['50%','25']]) },
+            { cat: 'Basics_Cleaning', name: 'na.drop()', desc: 'Drop null rows.', q: 'Remove incomplete data?', exp: 'Drops row if any column is null.', ctx: [{v:'df',type:'DF',val:'[id, null]'}], code: 'df.na.drop().show()', out: 'Empty DataFrame' },
+            { cat: 'Basics_Cleaning', name: 'na.fill()', desc: 'Fill null values.', q: 'Replace nulls with 0?', exp: 'Fills matching datatypes.', ctx: [{v:'df',type:'DF',val:'[age: null]'}], code: 'df.na.fill(0).show()', out: sparkShow(['age'],[['0']]) },
+            { cat: 'Basics_Cleaning', name: 'na.replace()', desc: 'Replace specific values.', q: 'Swap "Unknown" to "NA"?', exp: 'Find and replace values.', ctx: [{v:'df',type:'DF',val:'[status: "Unknown"]'}], code: 'df.na.replace("Unknown", "NA").show()', out: sparkShow(['status'],[['NA']]) },
+            { cat: 'Basics_Cleaning', name: 'distinct()', desc: 'Drop exact duplicate rows.', q: 'Get unique rows?', exp: 'Checks entire row.', ctx: [{v:'df',type:'DF',val:'[id: 1], [id: 1]'}], code: 'df.distinct().show()', out: sparkShow(['id'],[['1 ']]) },
+            { cat: 'Basics_Cleaning', name: 'dropDuplicates()', desc: 'Drop duplicates by subset.', q: 'Unique by ID?', exp: 'Checks specific columns.', ctx: [{v:'df',type:'DF',val:'[id: 1, v: A], [id: 1, v: B]'}], code: 'df.dropDuplicates(["id"]).show()', out: sparkShow(['id','v'],[['1 ','A']]) },
+            { cat: 'Basics_Cleaning', name: 'sample()', desc: 'Take random sample.', q: 'Get 10% subset?', exp: 'Returns fraction of data.', ctx: [{v:'df',type:'DF',val:'1M rows'}], code: 'df.sample(0.1).count()', out: '100034' },
+            { cat: 'Basics_Cleaning', name: 'randomSplit()', desc: 'Split DF randomly.', q: 'Train/Test split?', exp: 'Splits by weights.', ctx: [{v:'df',type:'DF',val:'100 rows'}], code: 'train, test = df.randomSplit([0.8, 0.2])', out: 'train: 82 rows, test: 18 rows' },
+            { cat: 'Basics_Cleaning', name: 'createOrReplaceTempView()', desc: 'Register view.', q: 'Query via SQL?', exp: 'Session-scoped view.', ctx: [{v:'df',type:'DF',val:'[id]'}], code: 'df.createOrReplaceTempView("t")', out: 'View "t" created.' },
+            { cat: 'Basics_Cleaning', name: 'createGlobalTempView()', desc: 'Register global view.', q: 'Share view across sessions?', exp: 'Cluster-scoped view.', ctx: [{v:'df',type:'DF',val:'[id]'}], code: 'df.createGlobalTempView("t")', out: 'View "global_temp.t" created.' },
+            { cat: 'Basics_Cleaning', name: 'table()', desc: 'Load table as DF.', q: 'Query registered view?', exp: 'Returns table as DF.', ctx: [{v:'spark',type:'Session',val:'View "t" exists'}], code: 'df = spark.table("t")', out: 'DataFrame Loaded.' },
+            { cat: 'Basics_Cleaning', name: 'cache()', desc: 'Cache in memory.', q: 'Save recomputation?', exp: 'Caches lazily on next action.', ctx: [{v:'df',type:'DF',val:'Data'}], code: 'df.cache()\ndf.count()', out: 'Cached in memory.' },
+            { cat: 'Basics_Cleaning', name: 'persist()', desc: 'Cache with storage level.', q: 'Cache to disk/memory?', exp: 'Allows specifying MEMORY_AND_DISK.', ctx: [{v:'df',type:'DF',val:'Data'}], code: 'from pyspark import StorageLevel\ndf.persist(StorageLevel.DISK_ONLY)', out: 'Persisted to disk.' },
+            { cat: 'Basics_Cleaning', name: 'unpersist()', desc: 'Remove from cache.', q: 'Free memory?', exp: 'Removes from memory/disk.', ctx: [{v:'df',type:'DF',val:'Cached'}], code: 'df.unpersist()', out: 'Removed from cache.' },
+
+            // 3. Columns & Selection (16 methods)
+            { cat: 'Columns_Select', name: 'select()', desc: 'Select columns.', q: 'Pick specific columns?', exp: 'Returns subset of columns.', ctx: [{v:'df',type:'DF',val:'[id, name, age]'}], code: 'df.select("name", "age").show()', out: sparkShow(['name','age'],[['Alice','25']]) },
+            { cat: 'Columns_Select', name: 'selectExpr()', desc: 'Select via SQL string.', q: 'Select and run math?', exp: 'Evaluates SQL expression.', ctx: [{v:'df',type:'DF',val:'[age: 25]'}], code: 'df.selectExpr("age * 2 as double_age").show()', out: sparkShow(['double_age'],[['50        ']]) },
+            { cat: 'Columns_Select', name: 'col()', desc: 'Return a Column.', q: 'Reference a column programmatically?', exp: 'Used heavily in functions.', ctx: [{v:'df',type:'DF',val:'[id]'}], code: 'import pyspark.sql.functions as F\ndf.select(F.col("id"))', out: 'Column<b\'id\'>' },
+            { cat: 'Columns_Select', name: 'alias()', desc: 'Rename a Column.', q: 'Rename output column?', exp: 'Applied directly to a Column object.', ctx: [{v:'df',type:'DF',val:'[id]'}], code: 'df.select(F.col("id").alias("user_id")).show()', out: sparkShow(['user_id'],[['1      ']]) },
+            { cat: 'Columns_Select', name: 'filter()', desc: 'Filter rows.', q: 'Keep specific rows?', exp: 'Evaluates boolean condition.', ctx: [{v:'df',type:'DF',val:'[age: 25, age: 10]'}], code: 'df.filter(df.age >= 18).show()', out: sparkShow(['age'],[['25 ']]) },
+            { cat: 'Columns_Select', name: 'where()', desc: 'Filter rows (alias).', q: 'Keep specific rows (SQL style)?', exp: 'Identical to filter().', ctx: [{v:'df',type:'DF',val:'[age: 25, age: 10]'}], code: 'df.where(df.age >= 18).show()', out: sparkShow(['age'],[['25 ']]) },
+            { cat: 'Columns_Select', name: 'withColumn()', desc: 'Add/replace column.', q: 'Create new column?', exp: 'Evaluates expression and adds it.', ctx: [{v:'df',type:'DF',val:'[id: 1]'}], code: 'df.withColumn("id2", F.col("id") * 2).show()', out: sparkShow(['id','id2'],[['1 ','2  ']]) },
+            { cat: 'Columns_Select', name: 'withColumnRenamed()', desc: 'Rename column in DF.', q: 'Change header safely?', exp: 'Renames without modifying other columns.', ctx: [{v:'df',type:'DF',val:'[zip: 123]'}], code: 'df.withColumnRenamed("zip", "zipcode").show()', out: sparkShow(['zipcode'],[['123    ']]) },
+            { cat: 'Columns_Select', name: 'drop()', desc: 'Remove column.', q: 'Delete column?', exp: 'Returns DF without it.', ctx: [{v:'df',type:'DF',val:'[id, ssn]'}], code: 'df.drop("ssn").show()', out: sparkShow(['id'],[['1 ']]) },
+            { cat: 'Columns_Select', name: 'cast()', desc: 'Change data type.', q: 'String to Int?', exp: 'Applied to a Column.', ctx: [{v:'df',type:'DF',val:'[age: "25"]'}], code: 'df.withColumn("age", F.col("age").cast("int"))', out: 'Column <btrim(cast(age as int))>' },
+            { cat: 'Columns_Select', name: 'between()', desc: 'Range check.', q: 'Is value between X and Y?', exp: 'Inclusive bounds check.', ctx: [{v:'df',type:'DF',val:'[age: 25]'}], code: 'df.filter(F.col("age").between(20, 30)).show()', out: sparkShow(['age'],[['25 ']]) },
+            { cat: 'Columns_Select', name: 'isin()', desc: 'List check.', q: 'Match against list?', exp: 'True if value exists in provided list.', ctx: [{v:'df',type:'DF',val:'[id: 1]'}], code: 'df.filter(F.col("id").isin([1, 2, 3])).show()', out: sparkShow(['id'],[['1 ']]) },
+            { cat: 'Columns_Select', name: 'like()', desc: 'SQL wildcard match.', q: 'Match prefix?', exp: 'Uses % and _ SQL wildcards.', ctx: [{v:'df',type:'DF',val:'[name: "Alice"]'}], code: 'df.filter(F.col("name").like("A%")).show()', out: sparkShow(['name'],[['Alice']]) },
+            { cat: 'Columns_Select', name: 'rlike()', desc: 'Regex match.', q: 'Match complex pattern?', exp: 'Uses standard regex.', ctx: [{v:'df',type:'DF',val:'[name: "Alice"]'}], code: 'df.filter(F.col("name").rlike("^A.*e$")).show()', out: sparkShow(['name'],[['Alice']]) },
+            { cat: 'Columns_Select', name: 'contains()', desc: 'Substring match.', q: 'Does string contain X?', exp: 'Simpler than like/rlike.', ctx: [{v:'df',type:'DF',val:'[name: "Alice"]'}], code: 'df.filter(F.col("name").contains("lic")).show()', out: sparkShow(['name'],[['Alice']]) },
+            { cat: 'Columns_Select', name: 'substr()', desc: 'Extract substring.', q: 'Get first 3 chars?', exp: 'Provide start pos and length.', ctx: [{v:'df',type:'DF',val:'[name: "Alice"]'}], code: 'df.select(F.col("name").substr(1, 3)).show()', out: sparkShow(['substring'],[['Ali      ']]) },
+
+            // 4. Aggregations & Joins (18 methods)
+            { cat: 'Aggs_Joins', name: 'orderBy()', desc: 'Sort DF.', q: 'Sort globally?', exp: 'Triggers shuffle.', ctx: [{v:'df',type:'DF',val:'[age: 25, 30]'}], code: 'df.orderBy(F.col("age").desc()).show()', out: sparkShow(['age'],[['30 '],['25 ']]) },
+            { cat: 'Aggs_Joins', name: 'sort()', desc: 'Sort DF (alias).', q: 'Sort globally?', exp: 'Identical to orderBy.', ctx: [{v:'df',type:'DF',val:'[age: 25, 30]'}], code: 'df.sort(F.col("age").desc()).show()', out: sparkShow(['age'],[['30 '],['25 ']]) },
+            { cat: 'Aggs_Joins', name: 'asc()', desc: 'Ascending order.', q: 'Sort low to high?', exp: 'Column modifier.', ctx: [], code: 'df.orderBy(F.col("age").asc())', out: 'Column <age ASC NULLS FIRST>' },
+            { cat: 'Aggs_Joins', name: 'desc()', desc: 'Descending order.', q: 'Sort high to low?', exp: 'Column modifier.', ctx: [], code: 'df.orderBy(F.col("age").desc())', out: 'Column <age DESC NULLS LAST>' },
+            { cat: 'Aggs_Joins', name: 'groupBy()', desc: 'Group rows.', q: 'Group by dept?', exp: 'Creates GroupedData object.', ctx: [{v:'df',type:'DF',val:'[dept, salary]'}], code: 'df.groupBy("dept").sum("salary").show()', out: sparkShow(['dept','sum(salary)'],[['IT  ','150000     ']]) },
+            { cat: 'Aggs_Joins', name: 'agg()', desc: 'Multiple aggregations.', q: 'Sum and Average?', exp: 'Pass multiple F functions.', ctx: [{v:'df',type:'DF',val:'[dept, salary]'}], code: 'df.groupBy("dept").agg(F.sum("salary"), F.avg("salary"))', out: 'DataFrame [dept, sum, avg]' },
+            { cat: 'Aggs_Joins', name: 'count()', desc: 'Agg: Count rows.', q: 'Count items?', exp: 'Used inside agg() or directly on DF.', ctx: [{v:'df',type:'DF',val:'[id]'}], code: 'df.groupBy("dept").count().show()', out: sparkShow(['dept','count'],[['IT  ','2    ']]) },
+            { cat: 'Aggs_Joins', name: 'sum()', desc: 'Agg: Sum values.', q: 'Total salary?', exp: 'Used inside agg().', ctx: [{v:'df',type:'DF',val:'[salary]'}], code: 'df.agg(F.sum("salary")).show()', out: sparkShow(['sum(salary)'],[['150000     ']]) },
+            { cat: 'Aggs_Joins', name: 'avg()', desc: 'Agg: Average.', q: 'Mean salary?', exp: 'Used inside agg().', ctx: [{v:'df',type:'DF',val:'[salary]'}], code: 'df.agg(F.avg("salary")).show()', out: sparkShow(['avg(salary)'],[['75000.0    ']]) },
+            { cat: 'Aggs_Joins', name: 'min()', desc: 'Agg: Minimum.', q: 'Lowest salary?', exp: 'Used inside agg().', ctx: [{v:'df',type:'DF',val:'[salary]'}], code: 'df.agg(F.min("salary")).show()', out: sparkShow(['min(salary)'],[['50000      ']]) },
+            { cat: 'Aggs_Joins', name: 'max()', desc: 'Agg: Maximum.', q: 'Highest salary?', exp: 'Used inside agg().', ctx: [{v:'df',type:'DF',val:'[salary]'}], code: 'df.agg(F.max("salary")).show()', out: sparkShow(['max(salary)'],[['100000     ']]) },
+            { cat: 'Aggs_Joins', name: 'mean()', desc: 'Agg: Mean (alias).', q: 'Average salary?', exp: 'Alias for avg().', ctx: [{v:'df',type:'DF',val:'[salary]'}], code: 'df.agg(F.mean("salary")).show()', out: sparkShow(['mean(salary)'],[['75000.0     ']]) },
+            { cat: 'Aggs_Joins', name: 'join()', desc: 'Join DFs.', q: 'Combine tables?', exp: 'Combines based on condition.', ctx: [{v:'df1',type:'DF',val:'[id]'},{v:'df2',type:'DF',val:'[id]'}], code: 'df1.join(df2, "id", "inner").show()', out: sparkShow(['id'],[['1 ']]) },
+            { cat: 'Aggs_Joins', name: 'inner (join)', desc: 'Inner Join.', q: 'Match both sides?', exp: 'Drops non-matching.', ctx: [], code: '# mode="inner" inside join()', out: 'See join()' },
+            { cat: 'Aggs_Joins', name: 'left (join)', desc: 'Left Join.', q: 'Keep left side?', exp: 'Pads right with nulls.', ctx: [], code: '# mode="left" inside join()', out: 'See join()' },
+            { cat: 'Aggs_Joins', name: 'right (join)', desc: 'Right Join.', q: 'Keep right side?', exp: 'Pads left with nulls.', ctx: [], code: '# mode="right" inside join()', out: 'See join()' },
+            { cat: 'Aggs_Joins', name: 'outer (join)', desc: 'Full Outer Join.', q: 'Keep everything?', exp: 'Pads missing with nulls.', ctx: [], code: '# mode="outer" inside join()', out: 'See join()' },
+            { cat: 'Aggs_Joins', name: 'cross (join)', desc: 'Cross Join.', q: 'Cartesian product?', exp: 'WARNING: Explodes row count.', ctx: [], code: 'df1.crossJoin(df2).show()', out: 'DataFrame Combined' },
+
+            // 5. Window & Partitions (11 methods)
+            { cat: 'Window', name: 'repartition()', desc: 'Change partitions (shuffle).', q: 'Increase parallelism?', exp: 'Full shuffle across cluster.', ctx: [{v:'df',type:'DF',val:'Parts: 2'}], code: 'df = df.repartition(10)', out: 'Parts: 10' },
+            { cat: 'Window', name: 'coalesce()', desc: 'Reduce partitions (no shuffle).', q: 'Write to single file?', exp: 'Merges partitions locally.', ctx: [{v:'df',type:'DF',val:'Parts: 10'}], code: 'df = df.coalesce(1)', out: 'Parts: 1' },
+            { cat: 'Window', name: 'Window.partitionBy()', desc: 'Window partition.', q: 'Group for Window func?', exp: 'Creates WindowSpec boundaries.', ctx: [], code: 'from pyspark.sql.window import Window\nw = Window.partitionBy("dept")', out: 'WindowSpec' },
+            { cat: 'Window', name: 'Window.orderBy()', desc: 'Window sort.', q: 'Sort within Window?', exp: 'Orders rows inside partition.', ctx: [], code: 'w = Window.partitionBy("dept").orderBy("salary")', out: 'WindowSpec' },
+            { cat: 'Window', name: 'rowsBetween()', desc: 'Window frame.', q: 'Rolling sum?', exp: 'Defines rolling bounds (e.g. -1 to 0).', ctx: [], code: 'w = Window.orderBy("date").rowsBetween(-1, 0)', out: 'WindowSpec' },
+            { cat: 'Window', name: 'row_number()', desc: 'Sequential rank.', q: 'Assign 1,2,3...?', exp: 'Always increments, no ties.', ctx: [{v:'df',type:'DF',val:'[dept, salary]'}], code: 'df.withColumn("rn", F.row_number().over(w))', out: 'Column <row_number()>' },
+            { cat: 'Window', name: 'rank()', desc: 'Rank with gaps.', q: 'Assign rank with ties?', exp: 'Ties get same rank, next rank skips.', ctx: [{v:'df',type:'DF',val:'[dept, salary]'}], code: 'df.withColumn("r", F.rank().over(w))', out: 'Column <rank()>' },
+            { cat: 'Window', name: 'dense_rank()', desc: 'Rank no gaps.', q: 'Ties without skipping?', exp: '1, 1, 2.', ctx: [{v:'df',type:'DF',val:'[dept, salary]'}], code: 'df.withColumn("dr", F.dense_rank().over(w))', out: 'Column <dense_rank()>' },
+            { cat: 'Window', name: 'lag()', desc: 'Previous row.', q: 'Compare to yesterday?', exp: 'Fetches value from N rows before.', ctx: [{v:'df',type:'DF',val:'[sales]'}], code: 'df.withColumn("prev", F.lag("sales", 1).over(w))', out: 'Column <lag(sales, 1)>' },
+            { cat: 'Window', name: 'lead()', desc: 'Next row.', q: 'Compare to tomorrow?', exp: 'Fetches value from N rows ahead.', ctx: [{v:'df',type:'DF',val:'[sales]'}], code: 'df.withColumn("next", F.lead("sales", 1).over(w))', out: 'Column <lead(sales, 1)>' },
+            { cat: 'Window', name: 'ntile()', desc: 'Quantile buckets.', q: 'Quartiles?', exp: 'Divides window into N buckets.', ctx: [{v:'df',type:'DF',val:'[salary]'}], code: 'df.withColumn("quartile", F.ntile(4).over(w))', out: 'Column <ntile(4)>' },
+
+            // 6. Functions (36 methods)
+            { cat: 'Functions', name: 'lit()', desc: 'Literal value.', q: 'Add hardcoded column?', exp: 'Converts Python val to Spark Column.', ctx: [], code: 'df.withColumn("flag", F.lit("Y")).show()', out: sparkShow(['flag'],[['Y   ']]) },
+            { cat: 'Functions', name: 'when()', desc: 'Condition start.', q: 'IF condition?', exp: 'Starts a CASE WHEN statement.', ctx: [], code: 'F.when(F.col("age") > 18, "Adult")', out: 'Column <CASE WHEN...>' },
+            { cat: 'Functions', name: 'otherwise()', desc: 'Condition fallback.', q: 'ELSE condition?', exp: 'Ends a CASE WHEN statement.', ctx: [], code: 'F.when(F.col("age") > 18, "A").otherwise("M")', out: 'Column <CASE WHEN... ELSE...>' },
+            { cat: 'Functions', name: 'expr()', desc: 'SQL expression.', q: 'SQL logic inside python?', exp: 'Parses string as SQL expression.', ctx: [], code: 'df.withColumn("d_age", F.expr("age * 2"))', out: 'Column <(age * 2)>' },
+            { cat: 'Functions', name: 'concat()', desc: 'Concat strings.', q: 'Merge strings?', exp: 'No separator.', ctx: [], code: 'df.withColumn("ab", F.concat(F.col("a"), F.col("b")))', out: 'Column <concat(a, b)>' },
+            { cat: 'Functions', name: 'substring()', desc: 'Extract part of string.', q: 'Substr?', exp: '1-based index.', ctx: [], code: 'df.select(F.substring(F.col("name"), 1, 3))', out: 'Column <substring(name, 1, 3)>' },
+            { cat: 'Functions', name: 'length()', desc: 'String length.', q: 'Char count?', exp: 'Returns integer length.', ctx: [], code: 'df.select(F.length(F.col("name")))', out: 'Column <length(name)>' },
+            { cat: 'Functions', name: 'upper()', desc: 'To uppercase.', q: 'Capitalize?', exp: 'Upper string.', ctx: [], code: 'df.select(F.upper(F.col("name")))', out: 'Column <upper(name)>' },
+            { cat: 'Functions', name: 'lower()', desc: 'To lowercase.', q: 'Lowercase?', exp: 'Lower string.', ctx: [], code: 'df.select(F.lower(F.col("name")))', out: 'Column <lower(name)>' },
+            { cat: 'Functions', name: 'trim()', desc: 'Remove spaces.', q: 'Strip spaces?', exp: 'Trims both ends.', ctx: [], code: 'df.select(F.trim(F.col("name")))', out: 'Column <trim(name)>' },
+            { cat: 'Functions', name: 'current_date()', desc: 'Current cluster date.', q: 'Get today?', exp: 'Returns DateType.', ctx: [], code: 'df.withColumn("d", F.current_date())', out: 'Column <current_date()>' },
+            { cat: 'Functions', name: 'current_timestamp()', desc: 'Current timestamp.', q: 'Get exact time?', exp: 'Returns TimestampType.', ctx: [], code: 'df.withColumn("t", F.current_timestamp())', out: 'Column <current_timestamp()>' },
+            { cat: 'Functions', name: 'datediff()', desc: 'Days between dates.', q: 'Difference in days?', exp: 'Date1 - Date2.', ctx: [], code: 'df.select(F.datediff(F.col("end"), F.col("start")))', out: 'Column <datediff(end, start)>' },
+            { cat: 'Functions', name: 'date_add()', desc: 'Add days.', q: 'Tomorrow?', exp: 'Adds integer days.', ctx: [], code: 'df.select(F.date_add(F.col("d"), 1))', out: 'Column <date_add(d, 1)>' },
+            { cat: 'Functions', name: 'date_sub()', desc: 'Subtract days.', q: 'Yesterday?', exp: 'Subtracts integer days.', ctx: [], code: 'df.select(F.date_sub(F.col("d"), 1))', out: 'Column <date_sub(d, 1)>' },
+            { cat: 'Functions', name: 'year()', desc: 'Extract year.', q: 'Get year int?', exp: 'Returns year component.', ctx: [], code: 'df.select(F.year(F.col("d")))', out: 'Column <year(d)>' },
+            { cat: 'Functions', name: 'month()', desc: 'Extract month.', q: 'Get month int?', exp: 'Returns month component.', ctx: [], code: 'df.select(F.month(F.col("d")))', out: 'Column <month(d)>' },
+            { cat: 'Functions', name: 'dayofmonth()', desc: 'Extract day.', q: 'Get day int?', exp: 'Returns day component.', ctx: [], code: 'df.select(F.dayofmonth(F.col("d")))', out: 'Column <dayofmonth(d)>' },
+            { cat: 'Functions', name: 'abs()', desc: 'Absolute value.', q: 'Make positive?', exp: 'Math function.', ctx: [], code: 'df.select(F.abs(F.col("num")))', out: 'Column <abs(num)>' },
+            { cat: 'Functions', name: 'round()', desc: 'Round number.', q: 'Round to 2 decimals?', exp: 'Math function.', ctx: [], code: 'df.select(F.round(F.col("num"), 2))', out: 'Column <round(num, 2)>' },
+            { cat: 'Functions', name: 'sqrt()', desc: 'Square root.', q: 'Find square root?', exp: 'Math function.', ctx: [], code: 'df.select(F.sqrt(F.col("num")))', out: 'Column <SQRT(num)>' },
+            { cat: 'Functions', name: 'pow()', desc: 'Power.', q: 'Raise to power?', exp: 'Math function.', ctx: [], code: 'df.select(F.pow(F.col("num"), 2))', out: 'Column <POWER(num, 2)>' },
+            { cat: 'Functions', name: 'log()', desc: 'Natural logarithm.', q: 'Find log?', exp: 'Math function.', ctx: [], code: 'df.select(F.log(F.col("num")))', out: 'Column <ln(num)>' },
+            { cat: 'Functions', name: 'split()', desc: 'Split string to array.', q: 'String to list?', exp: 'Uses regex pattern delimiter.', ctx: [], code: 'df.select(F.split(F.col("name"), " "))', out: 'Column <split(name,  )>' },
+            { cat: 'Functions', name: 'concat_ws()', desc: 'Concat with separator.', q: 'Join with comma?', exp: 'Like python join().', ctx: [], code: 'df.select(F.concat_ws(",", F.col("a"), F.col("b")))', out: 'Column <concat_ws(,, a, b)>' },
+            { cat: 'Functions', name: 'regexp_replace()', desc: 'Regex replace.', q: 'Replace pattern?', exp: 'Regex engine replacement.', ctx: [], code: 'df.select(F.regexp_replace(F.col("val"), "\\d", ""))', out: 'Column <regexp_replace...>' },
+            { cat: 'Functions', name: 'regexp_extract()', desc: 'Regex extract.', q: 'Extract pattern?', exp: 'Pulls specific regex group.', ctx: [], code: 'df.select(F.regexp_extract(F.col("val"), "(\\d+)", 1))', out: 'Column <regexp_extract...>' },
+            { cat: 'Functions', name: 'translate()', desc: 'Translate chars.', q: 'Swap specific chars?', exp: '1-to-1 character swap.', ctx: [], code: 'df.select(F.translate(F.col("val"), "ab", "12"))', out: 'Column <translate(val, ab, 12)>' },
+            { cat: 'Functions', name: 'array()', desc: 'Create array column.', q: 'Combine cols to list?', exp: 'Groups columns into ArrayType.', ctx: [], code: 'df.select(F.array(F.col("c1"), F.col("c2")))', out: 'Column <array(c1, c2)>' },
+            { cat: 'Functions', name: 'explode()', desc: 'Explode array.', q: 'Array to rows?', exp: 'Creates row per array element.', ctx: [], code: 'df.select(F.explode(F.col("arr_col")))', out: 'Column <explode(arr_col)>' },
+            { cat: 'Functions', name: 'size()', desc: 'Array size.', q: 'Length of array?', exp: 'Returns number of elements.', ctx: [], code: 'df.select(F.size(F.col("arr_col")))', out: 'Column <size(arr_col)>' },
+            { cat: 'Functions', name: 'array_contains()', desc: 'Check array.', q: 'Value in array?', exp: 'Returns boolean.', ctx: [], code: 'df.select(F.array_contains(F.col("arr_col"), "x"))', out: 'Column <array_contains...>' },
+            { cat: 'Functions', name: 'struct()', desc: 'Create struct.', q: 'Group to dict-like?', exp: 'Creates StructType column.', ctx: [], code: 'df.select(F.struct(F.col("c1"), F.col("c2")))', out: 'Column <struct(c1, c2)>' },
+            { cat: 'Functions', name: 'to_json()', desc: 'Struct to JSON string.', q: 'Serialize?', exp: 'Converts struct/array to JSON string.', ctx: [], code: 'df.select(F.to_json(F.col("struct_col")))', out: 'Column <to_json(struct_col)>' },
+            { cat: 'Functions', name: 'from_json()', desc: 'JSON string to struct.', q: 'Deserialize?', exp: 'Requires a predefined schema.', ctx: [], code: 'df.select(F.from_json(F.col("str"), schema))', out: 'Column <from_json(str)>' },
+
+            // 7. RDD & Advanced (16 methods)
+            { cat: 'RDD_Adv', name: 'map()', desc: 'RDD: Transform elements.', q: 'Apply func to all?', exp: 'Transformation: 1 to 1 mapping.', ctx: [{v:'rdd',type:'RDD',val:'[1, 2]'}], code: 'rdd.map(lambda x: x*2).collect()', out: '[2, 4]' },
+            { cat: 'RDD_Adv', name: 'flatMap()', desc: 'RDD: Map and flatten.', q: 'Split to many?', exp: 'Transformation: 1 to Many mapping.', ctx: [{v:'rdd',type:'RDD',val:'["a b"]'}], code: 'rdd.flatMap(lambda x: x.split()).collect()', out: "['a', 'b']" },
+            { cat: 'RDD_Adv', name: 'filter()', desc: 'RDD: Filter elements.', q: 'Keep specific?', exp: 'Transformation: Boolean check.', ctx: [{v:'rdd',type:'RDD',val:'[1, 2]'}], code: 'rdd.filter(lambda x: x>1).collect()', out: '[2]' },
+            { cat: 'RDD_Adv', name: 'distinct()', desc: 'RDD: Unique elements.', q: 'Remove dupes?', exp: 'Transformation: Distinct.', ctx: [{v:'rdd',type:'RDD',val:'[1, 1, 2]'}], code: 'rdd.distinct().collect()', out: '[1, 2]' },
+            { cat: 'RDD_Adv', name: 'union()', desc: 'RDD: Combine RDDs.', q: 'Append RDDs?', exp: 'Transformation: Combines.', ctx: [], code: 'rdd1.union(rdd2).collect()', out: '[...]' },
+            { cat: 'RDD_Adv', name: 'intersection()', desc: 'RDD: Keep overlaps.', q: 'Common items?', exp: 'Transformation: Shared only.', ctx: [], code: 'rdd1.intersection(rdd2).collect()', out: '[...]' },
+            { cat: 'RDD_Adv', name: 'subtract()', desc: 'RDD: Remove overlapping.', q: 'Items only in RDD1?', exp: 'Transformation: Difference.', ctx: [], code: 'rdd1.subtract(rdd2).collect()', out: '[...]' },
+            { cat: 'RDD_Adv', name: 'collect()', desc: 'RDD: Fetch data.', q: 'Bring to driver?', exp: 'Action: Returns python list.', ctx: [{v:'rdd',type:'RDD',val:'[1]'}], code: 'rdd.collect()', out: '[1]' },
+            { cat: 'RDD_Adv', name: 'count()', desc: 'RDD: Count items.', q: 'How many items?', exp: 'Action: Returns int.', ctx: [{v:'rdd',type:'RDD',val:'[1, 2]'}], code: 'rdd.count()', out: '2' },
+            { cat: 'RDD_Adv', name: 'first()', desc: 'RDD: Get first.', q: 'Get one item?', exp: 'Action: Returns first element.', ctx: [{v:'rdd',type:'RDD',val:'[1, 2]'}], code: 'rdd.first()', out: '1' },
+            { cat: 'RDD_Adv', name: 'take()', desc: 'RDD: Get N items.', q: 'Get top N?', exp: 'Action: Returns list of N.', ctx: [{v:'rdd',type:'RDD',val:'[1, 2]'}], code: 'rdd.take(1)', out: '[1]' },
+            { cat: 'RDD_Adv', name: 'reduce()', desc: 'RDD: Aggregate.', q: 'Sum all?', exp: 'Action: Pairwise aggregation.', ctx: [{v:'rdd',type:'RDD',val:'[1, 2, 3]'}], code: 'rdd.reduce(lambda a, b: a+b)', out: '6' },
+            { cat: 'RDD_Adv', name: 'foreach()', desc: 'RDD: Apply action.', q: 'Save to DB per row?', exp: 'Action: Runs on workers.', ctx: [], code: 'rdd.foreach(lambda x: save_to_db(x))', out: 'Executed on workers.' },
+            { cat: 'RDD_Adv', name: 'explain()', desc: 'Show Execution Plan.', q: 'View Catalyst plan?', exp: 'Prints physical/logical plans.', ctx: [{v:'df',type:'DF',val:'Data'}], code: 'df.explain()', out: '== Physical Plan ==\n*(1) Filter...' },
+            { cat: 'RDD_Adv', name: 'hint()', desc: 'Give optimizer hint.', q: 'Force broadcast join?', exp: 'Directs Catalyst optimizer.', ctx: [], code: 'df.hint("broadcast").join(df2)', out: 'DataFrame [Joined]' },
+            { cat: 'RDD_Adv', name: 'checkpoint()', desc: 'Truncate lineage.', q: 'Save state to HDFS?', exp: 'Prevents infinite recomputation.', ctx: [], code: 'df.checkpoint()', out: 'DataFrame [Checkpoint created]' },
+            { cat: 'RDD_Adv', name: 'foreachPartition()', desc: 'Run on partition.', q: 'Batch DB writes?', exp: 'Runs func once per partition.', ctx: [], code: 'rdd.foreachPartition(save_batch)', out: 'Executed on partitions.' },
+            { cat: 'RDD_Adv', name: 'foreachBatch()', desc: 'Structured Streaming.', q: 'Process micro-batch?', exp: 'Runs on streaming batches.', ctx: [], code: 'stream.writeStream.foreachBatch(func)', out: 'StreamingQuery' }
+        ];
+
+        document.getElementById('progress-text').textContent = `0/${methods.length}`;
+
+        function init() {
+            const body = document.getElementById('master-body');
+            methods.forEach((m, i) => {
+                const tr = document.createElement('tr');
+                tr.className = 'func-row';
+                tr.dataset.cat = m.cat;
+                tr.dataset.name = m.name.toLowerCase();
+                const isChecked = localStorage.getItem(`pyspark-150-${m.name}`) === 'true';
+                
+                let catColor = '#E25A1C'; let textColor = '#fff';
+                if(m.cat === 'Session_IO') { catColor = '#139BAE'; }
+                if(m.cat === 'Columns_Select') { catColor = '#306998'; }
+                if(m.cat === 'Aggs_Joins' || m.cat === 'Window') { catColor = '#a371f7'; }
+                if(m.cat === 'Functions') { catColor = '#22c55e'; }
+                if(m.cat === 'RDD_Adv') { catColor = '#da3633'; }
+
+                tr.innerHTML = `<td style="text-align:center"><input type="checkbox" class="checkbox-custom" ${isChecked ? 'checked' : ''} onchange="toggleRead('${m.name}', this)"></td>
+                    <td><span class="type-badge" style="background:${catColor}; color:${textColor}; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:700;">${m.cat.replace('_', ' ')}</span></td>
+                    <td class="func-name">${m.name}</td><td class="desc-text">${m.desc}</td>
+                    <td><button class="play-btn" onclick="runDemo(${i})">▶</button></td>`;
+                body.appendChild(tr);
+            });
+            updateProgress();
+        }
+
+        async function runDemo(i) {
+            const m = methods[i];
+            const codeBox = document.getElementById('code-box');
+            const outBox = document.getElementById('output-box');
+            const qBox = document.getElementById('demo-question');
+            const eBox = document.getElementById('demo-explanation');
+            const ctxBody = document.getElementById('context-body');
+            const schemaView = document.getElementById('schema-view');
+
+            document.getElementById('modal').classList.add('active');
+            
+            qBox.innerHTML = m.q || m.question || m.desc;
+            eBox.innerHTML = m.exp || m.explanation || `Demonstrates the usage of ${m.name}.`;
+
+            if (m.ctx && m.ctx.length > 0 || m.context && m.context.length > 0) {
+                let contextArr = m.ctx || m.context;
+                schemaView.style.display = 'block';
+                ctxBody.innerHTML = contextArr.map(c => `<tr><td><strong>${c.v}</strong> <span class="var-type">${c.type}</span></td><td>${c.val}</td></tr>`).join('');
+            } else { schemaView.style.display = 'none'; }
+
+            codeBox.innerHTML = ''; outBox.innerHTML = '';
+            let rawCode = "";
+            for (let char of m.code) {
+                rawCode += char;
+                codeBox.innerHTML = highlightPySpark(rawCode);
+                await new Promise(r => setTimeout(r, 4)); // very fast type for 150 items
+            }
+            await new Promise(r => setTimeout(r, 100));
+            outBox.innerHTML = m.out;
+        }
+
+        function toggleRead(name, el) { localStorage.setItem(`pyspark-150-${name}`, el.checked); updateProgress(); }
+        function updateProgress() {
+            const checked = document.querySelectorAll('.checkbox-custom:checked').length;
+            const pct = Math.round((checked / methods.length) * 100);
+            document.getElementById('progress-bar-fill').style.width = pct + '%';
+            document.getElementById('progress-text').textContent = `${checked}/${methods.length}`;
+        }
+        function resetProgress() { if(confirm('Reset all progress?')) { localStorage.clear(); location.reload(); } }
+        function closeModal() { document.getElementById('modal').classList.remove('active'); }
+        document.getElementById('searchInput').addEventListener('input', e => { const q = e.target.value.toLowerCase(); document.querySelectorAll('.func-row').forEach(row => { row.style.display = row.dataset.name.includes(q) ? '' : 'none'; }); });
+        document.getElementById('catFilter').addEventListener('change', e => { const cat = e.target.value; document.querySelectorAll('.func-row').forEach(row => { row.style.display = (cat === 'all' || row.dataset.cat === cat) ? '' : 'none'; }); });
+        init();
+    </script>
+</body>
+</html>
